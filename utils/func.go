@@ -2,6 +2,9 @@ package utils
 import "fmt"
 import "item"
 import "buyer"
+
+
+
 func Command_line () int{
 	var menu int
 	for {
@@ -40,7 +43,7 @@ func PrintItemInfo (arr []item.Item) {
 	fmt.Scanln()
 }
 
-func PrintItemInfo2 (arr []item.Item ,man *buyer.Buyer) {
+func PrintItemInfo2 (arr []item.Item ,man *buyer.Buyer , noo *int, deliverystart chan *map[string]int) {
 	for{
 		fmt.Println()
 		for i:=0 ; i < len(arr) ; i ++ {
@@ -54,19 +57,19 @@ func PrintItemInfo2 (arr []item.Item ,man *buyer.Buyer) {
 		
 		switch {
 			case choice == 1:
-				buying(arr, man , choice)
+				buying(arr, man , choice , noo , deliverystart)
 				return
 			case choice == 2:
-				buying(arr, man , choice)
+				buying(arr, man , choice, noo, deliverystart)
 				return
 			case choice == 3:
-				buying(arr, man , choice)
+				buying(arr, man , choice , noo , deliverystart)
 				return
 			case choice == 4:
-				buying(arr, man , choice)
+				buying(arr, man , choice , noo , deliverystart)
 				return
 			case choice == 5:
-				buying(arr, man , choice)
+				buying(arr, man , choice , noo , deliverystart)
 				return
 			default:
 				fmt.Println()
@@ -78,7 +81,7 @@ func PrintItemInfo2 (arr []item.Item ,man *buyer.Buyer) {
 	
 }
 
-func buying(arr []item.Item ,man *buyer.Buyer , choice int) {
+func buying(arr []item.Item ,man *buyer.Buyer , choice int , noo *int , deliverystart chan *map[string]int) {
 	for {
 		var num int
 		fmt.Print("구매수량 : ")
@@ -91,7 +94,7 @@ func buying(arr []item.Item ,man *buyer.Buyer , choice int) {
 			fmt.Println()
 			
 			if a == 1 {
-				buy(arr, man , choice , num) 
+				buy(arr, man , choice , num, noo , deliverystart) 
 				return	
 			} else if a == 2 {
 				goToShoppingBag(arr, man , choice , num)
@@ -105,8 +108,8 @@ func buying(arr []item.Item ,man *buyer.Buyer , choice int) {
 	}
 }
 
-func goToShoppingBag(arr []item.Item ,man *buyer.Buyer , choice int , num int) {
-	
+func goToShoppingBag(arr []item.Item ,man *buyer.Buyer , choice int , num int ) {
+
 	if arr[choice -1].Amount < man.ShoppingBucket[arr[choice-1].Name] + num {
 		fmt.Println()
 		fmt.Println("물품의 잔여 수량을 초과했습니다")
@@ -131,17 +134,32 @@ func goToShoppingBag(arr []item.Item ,man *buyer.Buyer , choice int , num int) {
 	fmt.Println()
 }
 
-func buy(arr []item.Item ,man *buyer.Buyer , choice int , num int) {
+func buy(arr []item.Item ,man *buyer.Buyer , choice int , num int, noo *int , deliverystart chan *map[string]int) {
 	defer func() {
 		if r:= recover(); r!=nil{
 			fmt.Println(r)
-			buying(arr, man , choice)
+			buying(arr, man , choice, noo , deliverystart)
 		}
 	}()
+	
+	if *noo >= 5 {
+		fmt.Println()
+		fmt.Println("배송 한도를 초과했습니다. 배송이 완료되면 주문하세요.")
+		fmt.Println()
+		return
+	}
+	
+	
+	
 	if arr[choice-1].CanManBuyIt(man,num) == true {
 		arr[choice - 1].Amount -= num
 		man.Point -= arr[choice - 1].Price * num
 		fmt.Println("상품 주문이 접수되었습니다.")
+		
+		tmp := map[string]int{}
+		tmp[arr[choice-1].Name] = num
+		deliverystart <- &tmp //배송시작
+		*noo ++
 	} else {
 		//주문불가 에러처리
 		if num < 0 {
@@ -190,8 +208,14 @@ func ExcessAmount(arr []item.Item ,man *buyer.Buyer) bool {
 	return true
 }
 
-func BuyInBucket(arr []item.Item ,man *buyer.Buyer) {
+func BuyInBucket(arr []item.Item ,man *buyer.Buyer ,noo *int , deliverystart chan *map[string]int) {
 	// //구매
+	if *noo >= 5 {
+		fmt.Println()
+		fmt.Println("배송 한도를 초과했습니다. 배송이 완료되면 주문하세요.")
+		fmt.Println()
+		return
+	}
 	for idx , val := range man.ShoppingBucket {
 		for i:= 0 ; i < len(arr) ; i ++ {
 			if arr[i].Name == idx {
@@ -200,8 +224,11 @@ func BuyInBucket(arr []item.Item ,man *buyer.Buyer) {
 			}
 		}
 	}
-	man.ShoppingBucket = map[string]int{}
+	deliverystart <- &man.ShoppingBucket
+	//man.ShoppingBucket = map[string]int{} 여기서 쇼핑백을 초기화하면 deliveryStatus 에서 사용불가 (포인터)
 	fmt.Println()
 	fmt.Println("상품 주문이 접수되었습니다.")
 	fmt.Println()
+	*noo ++
+	 //배송시작
 }

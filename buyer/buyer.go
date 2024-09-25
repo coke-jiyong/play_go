@@ -14,8 +14,10 @@ func NewBuyer() *Buyer {
 }
 
 func (b Buyer) PrintUserInfo() {
+	fmt.Println()
 	fmt.Printf("현재 잔여 마일리지는 %d점입니다.\n", b.Point)
 	fmt.Print("엔터를 입력하면 메뉴 화면으로 돌아갑니다.")
+	fmt.Println()
 	fmt.Scanln()
 }
 
